@@ -1,23 +1,23 @@
 // src/lib/api.ts
-import { getAccessToken, saveAccessToken, clearAccessToken } from './auth';
-import type { Movie, MoviesResponse, MoviesQuery, Review, User } from '@/types';
+import { getAccessToken, saveAccessToken, clearAccessToken } from "./auth";
+import type { Movie, MoviesResponse, MoviesQuery, Review, User } from "@/types";
 
-const BASE_URL = 'http://localhost:3000';  // Адрес NestJS
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"; // Адрес NestJS
 
 // ─── Базовая функция запроса ───────────────────────────────────────────────
 
 async function request<T>(
   endpoint: string,
   options: RequestInit = {},
-  isRetry = false  // флаг чтобы не зациклиться при рефреше
+  isRetry = false, // флаг чтобы не зациклиться при рефреше
 ): Promise<T> {
   const accessToken = getAccessToken();
 
   const response = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
-    credentials: 'include',  // ВАЖНО: отправляем httpOnly cookie (refreshToken)
+    credentials: "include", // ВАЖНО: отправляем httpOnly cookie (refreshToken)
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...options.headers,
     },
@@ -32,10 +32,10 @@ async function request<T>(
     } else {
       // Рефреш не помог — выходим
       clearAccessToken();
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
       }
-      throw new Error('Сессия истекла. Войдите снова.');
+      throw new Error("Сессия истекла. Войдите снова.");
     }
   }
 
@@ -54,8 +54,8 @@ async function request<T>(
 async function tryRefreshToken(): Promise<boolean> {
   try {
     const response = await fetch(`${BASE_URL}/auth/refresh`, {
-      method: 'POST',
-      credentials: 'include',  // браузер сам отправит httpOnly refreshToken cookie
+      method: "POST",
+      credentials: "include", // браузер сам отправит httpOnly refreshToken cookie
     });
     if (!response.ok) return false;
 
@@ -73,10 +73,10 @@ async function tryRefreshToken(): Promise<boolean> {
 export async function apiRegister(
   email: string,
   password: string,
-  name: string
+  name: string,
 ): Promise<{ accessToken: string }> {
-  return request('/auth/register', {
-    method: 'POST',
+  return request("/auth/register", {
+    method: "POST",
     body: JSON.stringify({ email, password, name }),
   });
 }
@@ -84,41 +84,43 @@ export async function apiRegister(
 // POST /auth/login → { accessToken }
 export async function apiLogin(
   email: string,
-  password: string
+  password: string,
 ): Promise<{ accessToken: string }> {
-  return request('/auth/login', {
-    method: 'POST',
+  return request("/auth/login", {
+    method: "POST",
     body: JSON.stringify({ email, password }),
   });
 }
 
 // POST /auth/logout — очищает cookie на сервере
 export async function apiLogout(): Promise<void> {
-  return request('/auth/logout', { method: 'POST' });
+  return request("/auth/logout", { method: "POST" });
 }
 
 // ─── USERS ─────────────────────────────────────────────────────────────────
 
 // GET /users/profile → полный профиль с отзывами
 export async function apiGetProfile(): Promise<User> {
-  return request<User>('/users/profile');
+  return request<User>("/users/profile");
 }
 
 // ─── MOVIES ────────────────────────────────────────────────────────────────
 
 // GET /movies?page=1&limit=10&genre=ACTION... → { data, meta }
-export async function apiGetMovies(query: MoviesQuery = {}): Promise<MoviesResponse> {
+export async function apiGetMovies(
+  query: MoviesQuery = {},
+): Promise<MoviesResponse> {
   const params = new URLSearchParams();
-  if (query.page) params.set('page', String(query.page));
-  if (query.limit) params.set('limit', String(query.limit));
-  if (query.genre) params.set('genre', query.genre);
-  if (query.year) params.set('year', String(query.year));
-  if (query.title) params.set('title', query.title);
-  if (query.sortBy) params.set('sortBy', query.sortBy);
-  if (query.order) params.set('order', query.order);
+  if (query.page) params.set("page", String(query.page));
+  if (query.limit) params.set("limit", String(query.limit));
+  if (query.genre) params.set("genre", query.genre);
+  if (query.year) params.set("year", String(query.year));
+  if (query.title) params.set("title", query.title);
+  if (query.sortBy) params.set("sortBy", query.sortBy);
+  if (query.order) params.set("order", query.order);
 
   const qs = params.toString();
-  return request<MoviesResponse>(`/movies${qs ? `?${qs}` : ''}`);
+  return request<MoviesResponse>(`/movies${qs ? `?${qs}` : ""}`);
 }
 
 // GET /movies/:id → один фильм
@@ -127,9 +129,9 @@ export async function apiGetMovie(id: string): Promise<Movie> {
 }
 
 // GET /movies/:id/reviews → фильм + массив отзывов с пользователями
-export async function apiGetMovieWithReviews(id: string): Promise<
-  Movie & { reviews: Review[] }
-> {
+export async function apiGetMovieWithReviews(
+  id: string,
+): Promise<Movie & { reviews: Review[] }> {
   return request(`/movies/${id}/reviews`);
 }
 
@@ -146,13 +148,13 @@ export async function apiCreateReview(data: {
   comment?: string;
   movieId: string;
 }): Promise<Review> {
-  return request<Review>('/reviews', {
-    method: 'POST',
+  return request<Review>("/reviews", {
+    method: "POST",
     body: JSON.stringify(data),
   });
 }
 
 // DELETE /reviews/:id → удалить свой отзыв
 export async function apiDeleteReview(id: string): Promise<void> {
-  return request<void>(`/reviews/${id}`, { method: 'DELETE' });
+  return request<void>(`/reviews/${id}`, { method: "DELETE" });
 }
