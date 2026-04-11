@@ -1,26 +1,55 @@
 /* src/app/globals.css */
 @import "tailwindcss";
 
+/* Tailwind v4: подключаем dark: вариант через класс .dark на <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ─── Светлая тема (по умолчанию) ──────────────────────────────────── */
+:root {
+  --bg-base:      #f5f4f0;
+  --bg-surface:   #eeedea;
+  --bg-card:      #ffffff;
+  --bg-input:     #e8e7e3;
+  --border:       #d4d3ce;
+  --text-primary: #1a1918;
+  --text-secondary: #6b6966;
+  --text-muted:   #a09d9a;
+  --scrollbar-track: #e8e7e3;
+  --scrollbar-thumb: #bfbdba;
+}
+
+/* ─── Тёмная тема ───────────────────────────────────────────────────── */
+.dark {
+  --bg-base:      #030712;
+  --bg-surface:   #0d1117;
+  --bg-card:      #111827;
+  --bg-input:     #1f2937;
+  --border:       #1f2937;
+  --text-primary: #f9fafb;
+  --text-secondary: #9ca3af;
+  --text-muted:   #4b5563;
+  --scrollbar-track: #111827;
+  --scrollbar-thumb: #374151;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-body {
-  background-color: #030712;
-  color: #f9fafb;
-  font-family: system-ui, sans-serif;
+html {
+  /* Предотвращаем прыжок при смене темы */
+  color-scheme: light dark;
 }
 
-/* Красивый скроллбар */
-::-webkit-scrollbar {
-  width: 6px;
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: system-ui, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
-::-webkit-scrollbar-track {
-  background: #111827;
-}
-::-webkit-scrollbar-thumb {
-  background: #374151;
-  border-radius: 3px;
-}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }

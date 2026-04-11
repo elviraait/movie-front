@@ -135,6 +135,24 @@ export async function apiGetMovieWithReviews(
   return request(`/movies/${id}/reviews`);
 }
 
+// POST /movies → создать фильм (только ADMIN)
+export async function apiCreateMovie(data: {
+  title: string;
+  description?: string;
+  year: number;
+  genre: string;
+}): Promise<Movie> {
+  return request<Movie>("/movies", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+// DELETE /movies/:id → удалить фильм (только ADMIN)
+export async function apiDeleteMovie(id: string): Promise<void> {
+  return request<void>(`/movies/${id}`, { method: "DELETE" });
+}
+
 // ─── REVIEWS ───────────────────────────────────────────────────────────────
 
 // GET /reviews/movie/:movieId → все отзывы на фильм
