@@ -23,11 +23,13 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
   const [theme, setTheme] = useState<Theme>('dark');
 
   useEffect(() => {
-    // Читаем тему из localStorage (inline-скрипт в layout уже применил класс)
+    // Читаем тему из localStorage и синхронизируем classList
     try {
       const saved = localStorage.getItem('theme') as Theme | null;
       if (saved === 'light' || saved === 'dark') {
         setTheme(saved);
+        // Явно синхронизируем класс на <html> на случай рассинхрона с inline-скриптом
+        document.documentElement.classList.toggle('dark', saved === 'dark');
       }
     } catch {}
   }, []);
