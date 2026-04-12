@@ -18,14 +18,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    // suppressHydrationWarning — нужен, т.к. класс .dark применяется инлайн-скриптом
-    // до гидрации React, и это намеренно
     <html lang="ru" suppressHydrationWarning>
       <head>
         {/*
           Инлайн-скрипт выполняется СИНХРОННО до рендера страницы.
-          Это предотвращает мигание неправильной темы (FOUC).
-          Тема по умолчанию — dark, как в оригинальном приложении.
+          Применяет класс темы и colorScheme — предотвращает мигание (FOUC).
         */}
         <script
           dangerouslySetInnerHTML={{
@@ -33,8 +30,10 @@ export default function RootLayout({
               try {
                 var t = localStorage.getItem('theme') || 'dark';
                 document.documentElement.classList.toggle('dark', t === 'dark');
+                document.documentElement.style.colorScheme = t;
               } catch(e) {
                 document.documentElement.classList.add('dark');
+                document.documentElement.style.colorScheme = 'dark';
               }
             `,
           }}

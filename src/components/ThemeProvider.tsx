@@ -19,24 +19,28 @@ export function useTheme() {
   return useContext(ThemeContext);
 }
 
+function applyTheme(t: Theme) {
+  document.documentElement.classList.toggle('dark', t === 'dark');
+  // Убираем автоматическую тёмную тему браузера для нативных элементов
+  document.documentElement.style.colorScheme = t;
+}
+
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>('dark');
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem('theme') as Theme | null;
-      if (saved === 'light' || saved === 'dark') {
-        setTheme(saved);
-        // Синхронизируем класс на <html> — на случай рассинхрона с inline-скриптом
-        document.documentElement.classList.toggle('dark', saved === 'dark');
-      }
+      const t: Theme = (saved === 'light' || saved === 'dark') ? saved : 'dark';
+      setTheme(t);
+      applyTheme(t);
     } catch {}
   }, []);
 
   function toggle() {
     const next: Theme = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
-    document.documentElement.classList.toggle('dark', next === 'dark');
+    applyTheme(next);
     try {
       localStorage.setItem('theme', next);
     } catch {}

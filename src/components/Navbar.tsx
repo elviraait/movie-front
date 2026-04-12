@@ -4,20 +4,9 @@
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { isAuthenticated, getAccessToken, clearAccessToken } from '@/lib/auth';
-import { apiLogout } from '@/lib/api';
+import { isAuthenticated, clearAccessToken } from '@/lib/auth';
+import { apiLogout, apiGetProfile } from '@/lib/api';
 import { useTheme } from './ThemeProvider';
-
-function getRoleFromToken(): string | null {
-  try {
-    const token = getAccessToken();
-    if (!token) return null;
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.role ?? null;
-  } catch {
-    return null;
-  }
-}
 
 export default function Navbar() {
   const router = useRouter();
@@ -29,8 +18,14 @@ export default function Navbar() {
   useEffect(() => {
     const auth = isAuthenticated();
     setLoggedIn(auth);
-    // case-insensitive сравнение — JWT может вернуть 'Admin' или 'ADMIN'
-    setIsAdmin(auth && getRoleFromToken()?.toUpperCase() === 'ADMIN');
+    if (auth) {
+      // Читаем роль с API — надёжнее чем парсить JWT вручную
+      apiGetProfile()
+        .then(user => setIsAdmin(user.role?.toUpperCase() === 'ADMIN'))
+        .catch(() => setIsAdmin(false));
+    } else {
+      setIsAdmin(false);
+    }
   }, [pathname]);
 
   async function handleLogout() {
@@ -60,7 +55,6 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center gap-2">
-          {/* Переключатель темы */}
           <button
             onClick={toggle}
             className="w-9 h-9 rounded-lg flex items-center justify-center text-base transition-colors duration-150"

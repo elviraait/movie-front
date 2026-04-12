@@ -17,7 +17,7 @@ const GENRES: { value: Genre; label: string }[] = [
   { value: 'SCI_FI', label: 'Фантастика' },
 ];
 
-const inputStyle: React.CSSProperties = {
+const fieldStyle: React.CSSProperties = {
   backgroundColor: 'var(--bg-input)',
   borderColor: 'var(--border)',
   color: 'var(--text-primary)',
@@ -57,32 +57,27 @@ export default function MovieFilters({ onFilter, loading }: Props) {
       style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {/* Поиск по названию */}
         <input
           type="text"
           value={title}
           onChange={e => setTitle(e.target.value)}
           placeholder="Поиск по названию..."
           className="rounded-lg px-3 py-2 text-sm border focus:outline-none focus:border-blue-500 transition-colors"
-          style={inputStyle}
+          style={fieldStyle}
         />
 
-        {/* Жанр */}
         <select
           value={genre}
           onChange={e => setGenre(e.target.value as Genre | '')}
           className="rounded-lg px-3 py-2 text-sm border focus:outline-none focus:border-blue-500 transition-colors"
-          style={inputStyle}
+          style={fieldStyle}
         >
           <option value="">Все жанры</option>
           {GENRES.map(g => (
-            <option key={g.value} value={g.value}>
-              {g.label}
-            </option>
+            <option key={g.value} value={g.value}>{g.label}</option>
           ))}
         </select>
 
-        {/* Год */}
         <input
           type="number"
           value={year}
@@ -91,16 +86,15 @@ export default function MovieFilters({ onFilter, loading }: Props) {
           min={1888}
           max={new Date().getFullYear()}
           className="rounded-lg px-3 py-2 text-sm border focus:outline-none focus:border-blue-500 transition-colors"
-          style={inputStyle}
+          style={fieldStyle}
         />
 
-        {/* Сортировка */}
         <div className="flex gap-2">
           <select
             value={sortBy}
             onChange={e => setSortBy(e.target.value as 'title' | 'year' | 'createdAt')}
             className="flex-1 rounded-lg px-3 py-2 text-sm border focus:outline-none focus:border-blue-500 transition-colors"
-            style={inputStyle}
+            style={fieldStyle}
           >
             <option value="createdAt">По дате</option>
             <option value="year">По году</option>
@@ -110,7 +104,7 @@ export default function MovieFilters({ onFilter, loading }: Props) {
             value={order}
             onChange={e => setOrder(e.target.value as 'asc' | 'desc')}
             className="rounded-lg px-2 py-2 text-sm border focus:outline-none focus:border-blue-500 transition-colors"
-            style={inputStyle}
+            style={fieldStyle}
           >
             <option value="desc">↓</option>
             <option value="asc">↑</option>
@@ -118,7 +112,6 @@ export default function MovieFilters({ onFilter, loading }: Props) {
         </div>
       </div>
 
-      {/* Кнопки */}
       <div className="flex gap-2 mt-3">
         <button
           type="submit"
@@ -130,7 +123,7 @@ export default function MovieFilters({ onFilter, loading }: Props) {
         <button
           type="button"
           onClick={handleReset}
-          className="text-sm px-5 py-2 rounded-lg transition-colors border"
+          className="text-sm px-5 py-2 rounded-lg border transition-colors"
           style={{ backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)', borderColor: 'var(--border)' }}
         >
           Сбросить

@@ -38,10 +38,8 @@
   padding: 0;
 }
 
-html {
-  /* Предотвращаем прыжок при смене темы */
-  color-scheme: light dark;
-}
+/* color-scheme задаётся динамически через ThemeProvider (style.colorScheme),
+   чтобы браузер не применял системную тёмную тему к нативным элементам */
 
 body {
   background-color: var(--bg-base);
