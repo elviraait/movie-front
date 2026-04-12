@@ -29,7 +29,8 @@ export default function Navbar() {
   useEffect(() => {
     const auth = isAuthenticated();
     setLoggedIn(auth);
-    setIsAdmin(auth && getRoleFromToken() === 'ADMIN');
+    // case-insensitive сравнение — JWT может вернуть 'Admin' или 'ADMIN'
+    setIsAdmin(auth && getRoleFromToken()?.toUpperCase() === 'ADMIN');
   }, [pathname]);
 
   async function handleLogout() {

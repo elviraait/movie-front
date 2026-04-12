@@ -17,6 +17,12 @@ const GENRES: { value: Genre; label: string }[] = [
   { value: 'SCI_FI', label: 'Фантастика' },
 ];
 
+const inputStyle: React.CSSProperties = {
+  backgroundColor: 'var(--bg-input)',
+  borderColor: 'var(--border)',
+  color: 'var(--text-primary)',
+};
+
 export default function MovieFilters({ onFilter, loading }: Props) {
   const [title, setTitle] = useState('');
   const [genre, setGenre] = useState<Genre | ''>('');
@@ -47,7 +53,8 @@ export default function MovieFilters({ onFilter, loading }: Props) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-8"
+      className="rounded-xl p-4 mb-8 border"
+      style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Поиск по названию */}
@@ -56,14 +63,16 @@ export default function MovieFilters({ onFilter, loading }: Props) {
           value={title}
           onChange={e => setTitle(e.target.value)}
           placeholder="Поиск по названию..."
-          className="bg-gray-800 text-white rounded-lg px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:border-blue-500 transition-colors"
+          className="rounded-lg px-3 py-2 text-sm border focus:outline-none focus:border-blue-500 transition-colors"
+          style={inputStyle}
         />
 
         {/* Жанр */}
         <select
           value={genre}
           onChange={e => setGenre(e.target.value as Genre | '')}
-          className="bg-gray-800 text-white rounded-lg px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:border-blue-500 transition-colors"
+          className="rounded-lg px-3 py-2 text-sm border focus:outline-none focus:border-blue-500 transition-colors"
+          style={inputStyle}
         >
           <option value="">Все жанры</option>
           {GENRES.map(g => (
@@ -81,7 +90,8 @@ export default function MovieFilters({ onFilter, loading }: Props) {
           placeholder="Год (напр. 2023)"
           min={1888}
           max={new Date().getFullYear()}
-          className="bg-gray-800 text-white rounded-lg px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:border-blue-500 transition-colors"
+          className="rounded-lg px-3 py-2 text-sm border focus:outline-none focus:border-blue-500 transition-colors"
+          style={inputStyle}
         />
 
         {/* Сортировка */}
@@ -89,7 +99,8 @@ export default function MovieFilters({ onFilter, loading }: Props) {
           <select
             value={sortBy}
             onChange={e => setSortBy(e.target.value as 'title' | 'year' | 'createdAt')}
-            className="flex-1 bg-gray-800 text-white rounded-lg px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:border-blue-500 transition-colors"
+            className="flex-1 rounded-lg px-3 py-2 text-sm border focus:outline-none focus:border-blue-500 transition-colors"
+            style={inputStyle}
           >
             <option value="createdAt">По дате</option>
             <option value="year">По году</option>
@@ -98,7 +109,8 @@ export default function MovieFilters({ onFilter, loading }: Props) {
           <select
             value={order}
             onChange={e => setOrder(e.target.value as 'asc' | 'desc')}
-            className="bg-gray-800 text-white rounded-lg px-2 py-2 text-sm border border-gray-700 focus:outline-none focus:border-blue-500 transition-colors"
+            className="rounded-lg px-2 py-2 text-sm border focus:outline-none focus:border-blue-500 transition-colors"
+            style={inputStyle}
           >
             <option value="desc">↓</option>
             <option value="asc">↑</option>
@@ -118,7 +130,8 @@ export default function MovieFilters({ onFilter, loading }: Props) {
         <button
           type="button"
           onClick={handleReset}
-          className="bg-gray-700 hover:bg-gray-600 text-white text-sm px-5 py-2 rounded-lg transition-colors"
+          className="text-sm px-5 py-2 rounded-lg transition-colors border"
+          style={{ backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)', borderColor: 'var(--border)' }}
         >
           Сбросить
         </button>
