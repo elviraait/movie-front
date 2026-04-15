@@ -1,130 +1,159 @@
-// src/app/page.tsx
 'use client';
-
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { apiGetMovies } from '@/lib/api';
-import type { Movie, MoviesResponse, MoviesQuery } from '@/types';
-import MovieCard from '@/components/MovieCard';
-import MovieFilters from '@/components/MovieFilters';
+import { MovieCard } from '@/components/MovieCard';
+import { Pagination } from '@/components/Pagination';
+import type { Movie, MoviesQuery, Genre } from '@/types';
+
+const GENRES: Genre[] = ['ACTION', 'COMEDY', 'DRAMA', 'HORROR', 'SCI_FI'];
+const SORT_OPTIONS = [
+  { value: 'createdAt:desc', label: 'Newest First' },
+  { value: 'createdAt:asc',  label: 'Oldest First' },
+  { value: 'year:desc',      label: 'Year ↓' },
+  { value: 'year:asc',       label: 'Year ↑' },
+  { value: 'title:asc',      label: 'Title A–Z' },
+  { value: 'title:desc',     label: 'Title Z–A' },
+];
 
 export default function HomePage() {
-  const [response,     setResponse]     = useState<MoviesResponse | null>(null);
-  const [loading,      setLoading]      = useState(true);
-  const [error,        setError]        = useState('');
-  const [currentQuery, setCurrentQuery] = useState<MoviesQuery>({ page: 1 });
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [meta, setMeta] = useState({ total: 0, page: 1, totalPages: 1 });
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState<MoviesQuery>({ page: 1, limit: 20, sortBy: 'createdAt', order: 'desc' });
+  const [titleInput, setTitleInput] = useState('');
+  const [yearInput, setYearInput] = useState('');
 
-  useEffect(() => {
-    loadMovies(currentQuery);
-  }, [currentQuery]);
-
-  async function loadMovies(query: MoviesQuery) {
+  const load = useCallback(async (q: MoviesQuery) => {
     setLoading(true);
-    setError('');
     try {
-      const data = await apiGetMovies(query);
-      setResponse(data);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Не удалось загрузить фильмы');
-    } finally {
-      setLoading(false);
-    }
-  }
+      const res = await apiGetMovies(q);
+      setMovies(res.data);
+      setMeta({ total: res.meta.total, page: res.meta.page, totalPages: res.meta.totalPages });
+    } catch { setMovies([]); } finally { setLoading(false); }
+  }, []);
 
-  function handleFilter(query: MoviesQuery) {
-    setCurrentQuery(query);
-  }
+  useEffect(() => { load(query); }, [query, load]);
 
-  function handlePageChange(page: number) {
-    setCurrentQuery(prev => ({ ...prev, page }));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
+  const setGenre = (g: Genre | undefined) => setQuery(q => ({ ...q, genre: g, page: 1 }));
+  const setSort = (v: string) => {
+    const [sortBy, order] = v.split(':') as [MoviesQuery['sortBy'], MoviesQuery['order']];
+    setQuery(q => ({ ...q, sortBy, order, page: 1 }));
+  };
+  const applySearch = () => setQuery(q => ({
+    ...q, title: titleInput || undefined, year: yearInput ? +yearInput : undefined, page: 1,
+  }));
+
+  const skeletons = Array.from({ length: 20 });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>
-          Все фильмы
+    <div style={{ maxWidth: 1440, margin: '0 auto', padding: '32px 24px' }}>
+      {/* Hero */}
+      <div className="fade-up" style={{ marginBottom: 40 }}>
+        <h1 style={{
+          fontFamily: 'Bebas Neue, cursive', fontSize: 'clamp(36px, 6vw, 72px)',
+          letterSpacing: 4, lineHeight: 1, marginBottom: 8,
+        }}>
+          <span style={{ color: 'var(--accent)' }}>CINE</span>VAULT
         </h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-          {response ? `Найдено ${response.meta.total} фильмов` : ''}
+        <p style={{ color: 'var(--text-muted)', fontSize: 16 }}>
+          {meta.total} movies · discover, rate, review
         </p>
       </div>
 
-      <MovieFilters onFilter={handleFilter} loading={loading} />
-
-      {/* Ошибка */}
-      {error && (
-        <div className="text-center py-12">
-          <p className="text-red-400">{error}</p>
-          <button
-            onClick={() => loadMovies(currentQuery)}
-            className="mt-3 text-blue-400 hover:underline text-sm"
-          >
-            Попробовать снова
-          </button>
-        </div>
-      )}
-
-      {/* Скелетон загрузки */}
-      {loading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div
-              key={i}
-              className="rounded-xl h-56 animate-pulse"
-              style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
+      {/* Filters */}
+      <div className="card fade-up" style={{ marginBottom: 32, padding: '20px 24px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+          {/* Title search */}
+          <div style={{ display: 'flex', gap: 8, flex: '1 1 240px' }}>
+            <input
+              placeholder="Search title..."
+              value={titleInput}
+              onChange={e => setTitleInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && applySearch()}
+              style={{ flex: 1 }}
             />
+            <button className="btn btn-primary" onClick={applySearch}>Search</button>
+          </div>
+
+          {/* Year */}
+          <input
+            placeholder="Year"
+            value={yearInput}
+            onChange={e => setYearInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && applySearch()}
+            style={{ width: 100 }}
+            type="number"
+          />
+
+          {/* Sort */}
+          <select
+            value={`${query.sortBy}:${query.order}`}
+            onChange={e => setSort(e.target.value)}
+            style={{ width: 160 }}
+          >
+            {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+
+          {/* Clear */}
+          {(query.title || query.year || query.genre) && (
+            <button className="btn btn-ghost btn-sm" onClick={() => {
+              setTitleInput(''); setYearInput('');
+              setQuery({ page: 1, limit: 20, sortBy: 'createdAt', order: 'desc' });
+            }}>✕ Clear</button>
+          )}
+        </div>
+
+        {/* Genre tabs */}
+        <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+          <button
+            className="btn btn-sm"
+            onClick={() => setGenre(undefined)}
+            style={{
+              background: !query.genre ? 'var(--accent)' : 'var(--bg-elevated)',
+              color: !query.genre ? '#fff' : 'var(--text-muted)',
+              border: '1px solid var(--border)',
+            }}
+          >All</button>
+          {GENRES.map(g => (
+            <button
+              key={g}
+              className="btn btn-sm"
+              onClick={() => setGenre(query.genre === g ? undefined : g)}
+              style={{
+                background: query.genre === g ? 'var(--accent)' : 'var(--bg-elevated)',
+                color: query.genre === g ? '#fff' : 'var(--text-muted)',
+                border: '1px solid var(--border)',
+              }}
+            >{g.replace('_', ' ')}</button>
           ))}
         </div>
-      )}
+      </div>
 
-      {!loading && !error && response && (
+      {/* Grid */}
+      {loading ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
+          {skeletons.map((_, i) => (
+            <div key={i} className="skeleton" style={{ borderRadius: 12, paddingTop: '150%' }} />
+          ))}
+        </div>
+      ) : movies.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '80px 0', color: 'var(--text-dim)' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🎬</div>
+          <p>No movies found</p>
+        </div>
+      ) : (
         <>
-          {response.data.length === 0 ? (
-            <div className="text-center py-16">
-              <p className="text-4xl mb-3">🎬</p>
-              <p style={{ color: 'var(--text-secondary)' }}>Фильмов не найдено</p>
-              <button
-                onClick={() => handleFilter({ page: 1 })}
-                className="mt-3 text-blue-400 hover:underline text-sm"
-              >
-                Сбросить фильтры
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                {response.data.map((movie: Movie) => (
-                  <MovieCard key={movie.id} movie={movie} />
-                ))}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16,
+          }}>
+            {movies.map((m, i) => (
+              <div key={m.id} className="fade-up" style={{ animationDelay: `${i * 0.03}s` }}>
+                <MovieCard movie={m} />
               </div>
-
-              {/* Пагинация */}
-              {response.meta.totalPages > 1 && (
-                <div className="flex justify-center items-center gap-2 mt-10">
-                  <button
-                    onClick={() => handlePageChange(response.meta.page - 1)}
-                    disabled={!response.meta.hasPrevPage}
-                    className="px-4 py-2 rounded-lg disabled:opacity-40 transition-colors text-sm"
-                    style={{ backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
-                  >
-                    ← Назад
-                  </button>
-                  <span className="text-sm px-3" style={{ color: 'var(--text-secondary)' }}>
-                    {response.meta.page} из {response.meta.totalPages}
-                  </span>
-                  <button
-                    onClick={() => handlePageChange(response.meta.page + 1)}
-                    disabled={!response.meta.hasNextPage}
-                    className="px-4 py-2 rounded-lg disabled:opacity-40 transition-colors text-sm"
-                    style={{ backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)' }}
-                  >
-                    Вперёд →
-                  </button>
-                </div>
-              )}
-            </>
-          )}
+            ))}
+          </div>
+          <Pagination page={meta.page} totalPages={meta.totalPages} onChange={p => setQuery(q => ({ ...q, page: p }))} />
         </>
       )}
     </div>

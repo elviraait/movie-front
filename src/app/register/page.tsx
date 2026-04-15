@@ -1,132 +1,61 @@
-// src/app/register/page.tsx
 'use client';
-
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { apiRegister } from '@/lib/api';
-import { saveAccessToken } from '@/lib/auth';
-
-const inputStyle = {
-  backgroundColor: 'var(--bg-input)',
-  borderColor: 'var(--border)',
-  color: 'var(--text-primary)',
-};
+import { useRouter } from 'next/navigation';
+import { apiRegister, apiGetProfile } from '@/lib/api';
+import { saveUserInfo } from '@/lib/auth';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [name,     setName]     = useState('');
-  const [email,    setEmail]    = useState('');
-  const [password, setPassword] = useState('');
-  const [error,    setError]    = useState('');
-  const [loading,  setLoading]  = useState(false);
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handle = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
+    setError(''); setLoading(true);
     try {
-      const { accessToken } = await apiRegister(email, password, name);
-      saveAccessToken(accessToken);
+      await apiRegister(form.email, form.password, form.name);
+      const profile = await apiGetProfile();
+      saveUserInfo({ id: profile.id, name: profile.name, email: profile.email, role: profile.role });
       router.push('/');
-      router.refresh();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Ошибка регистрации');
-    } finally {
-      setLoading(false);
-    }
-  }
+    } catch (err: any) { setError(err.message); } finally { setLoading(false); }
+  };
 
   return (
-    <div className="min-h-[calc(100vh-60px)] flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div
-          className="rounded-2xl border p-8"
-          style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
-        >
-          <h1 className="text-2xl font-bold mb-6" style={{ color: 'var(--text-primary)' }}>
-            Создать аккаунт
-          </h1>
+    <div style={{ minHeight: 'calc(100vh - 60px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div className="fade-up card" style={{ width: '100%', maxWidth: 400 }}>
+        <h1 style={{ fontFamily: 'Bebas Neue, cursive', fontSize: 32, letterSpacing: 2, marginBottom: 4 }}>
+          Create <span style={{ color: 'var(--accent)' }}>Account</span>
+        </h1>
+        <p style={{ color: 'var(--text-muted)', marginBottom: 28, fontSize: 14 }}>Join CineVault today</p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-sm block mb-1" style={{ color: 'var(--text-secondary)' }}>
-                Имя
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                required
-                minLength={2}
-                className="w-full rounded-lg px-4 py-3 border text-sm outline-none focus:border-blue-500 transition-colors"
-                style={inputStyle}
-              />
+        <form onSubmit={handle} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {[
+            { key: 'name', label: 'Name', type: 'text', placeholder: 'John Doe' },
+            { key: 'email', label: 'Email', type: 'email', placeholder: 'you@example.com' },
+            { key: 'password', label: 'Password', type: 'password', placeholder: '••••••••' },
+          ].map(f => (
+            <div key={f.key}>
+              <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>{f.label}</label>
+              <input type={f.type} required placeholder={f.placeholder}
+                value={(form as any)[f.key]}
+                onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} />
             </div>
+          ))}
 
-            <div>
-              <label className="text-sm block mb-1" style={{ color: 'var(--text-secondary)' }}>
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                className="w-full rounded-lg px-4 py-3 border text-sm outline-none focus:border-blue-500 transition-colors"
-                style={inputStyle}
-              />
-            </div>
+          {error && (
+            <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '10px 14px', color: '#ef4444', fontSize: 13 }}>{error}</div>
+          )}
 
-            <div>
-              <label className="text-sm block mb-1" style={{ color: 'var(--text-secondary)' }}>
-                Пароль
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-                minLength={6}
-                className="w-full rounded-lg px-4 py-3 border text-sm outline-none focus:border-blue-500 transition-colors"
-                style={inputStyle}
-              />
-              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                Минимум 6 символов
-              </p>
-            </div>
+          <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%', marginTop: 4, padding: '12px' }}>
+            {loading ? 'Creating account…' : 'Create Account'}
+          </button>
+        </form>
 
-            {error && (
-              <p
-                className="text-sm rounded-lg px-3 py-2 border"
-                style={{
-                  backgroundColor: 'rgba(127,29,29,0.2)',
-                  borderColor: 'rgba(239,68,68,0.3)',
-                  color: '#f87171',
-                }}
-              >
-                {error}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50
-                text-white py-3 rounded-lg font-semibold transition-colors mt-2 text-sm"
-            >
-              {loading ? 'Создание...' : 'Зарегистрироваться'}
-            </button>
-          </form>
-
-          <p className="text-sm text-center mt-5" style={{ color: 'var(--text-muted)' }}>
-            Уже есть аккаунт?{' '}
-            <Link href="/login" className="text-blue-400 hover:text-blue-300 transition-colors">
-              Войти
-            </Link>
-          </p>
-        </div>
+        <p style={{ textAlign: 'center', marginTop: 20, fontSize: 14, color: 'var(--text-muted)' }}>
+          Have an account? <Link href="/login" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Sign In</Link>
+        </p>
       </div>
     </div>
   );

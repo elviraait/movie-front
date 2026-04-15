@@ -1,144 +1,149 @@
-// src/components/MovieCard.tsx
 'use client';
-
 import Link from 'next/link';
-import { useTheme } from './ThemeProvider';
 import type { Movie } from '@/types';
 
-const GENRE_LABELS: Record<string, string> = {
-  ACTION: 'Боевик',
-  COMEDY: 'Комедия',
-  DRAMA: 'Драма',
-  HORROR: 'Ужасы',
-  SCI_FI: 'Фантастика',
+const GENRE_COLORS: Record<string, string> = {
+  ACTION: 'badge-action', COMEDY: 'badge-comedy', DRAMA: 'badge-drama',
+  HORROR: 'badge-horror', SCI_FI: 'badge-sci_fi',
 };
 
-// Градиент для постера по жанру (тёмная тема)
-const GENRE_GRADIENTS_DARK: Record<string, string> = {
-  ACTION:  'linear-gradient(145deg, #7f1d1d 0%, #dc2626 50%, #f97316 100%)',
-  COMEDY:  'linear-gradient(145deg, #78350f 0%, #d97706 50%, #fbbf24 100%)',
-  DRAMA:   'linear-gradient(145deg, #3b0764 0%, #7c3aed 50%, #a78bfa 100%)',
-  HORROR:  'linear-gradient(145deg, #1f2937 0%, #374151 50%, #6b7280 100%)',
-  SCI_FI:  'linear-gradient(145deg, #0c1445 0%, #1d4ed8 50%, #06b6d4 100%)',
+// Unique gradient per genre for the placeholder
+const GENRE_GRADIENTS: Record<string, string> = {
+  ACTION:  'linear-gradient(135deg, #1a0000 0%, #3d0000 50%, #1a0505 100%)',
+  COMEDY:  'linear-gradient(135deg, #1a1500 0%, #3d3000 50%, #1a1a05 100%)',
+  DRAMA:   'linear-gradient(135deg, #050010 0%, #100030 50%, #050015 100%)',
+  HORROR:  'linear-gradient(135deg, #0a0010 0%, #1a0035 50%, #050010 100%)',
+  SCI_FI:  'linear-gradient(135deg, #00101a 0%, #002535 50%, #00101a 100%)',
 };
 
-// Градиент для постера по жанру (светлая тема)
-const GENRE_GRADIENTS_LIGHT: Record<string, string> = {
-  ACTION:  'linear-gradient(145deg, #fca5a5 0%, #f87171 50%, #fb923c 100%)',
-  COMEDY:  'linear-gradient(145deg, #fde68a 0%, #fbbf24 50%, #f59e0b 100%)',
-  DRAMA:   'linear-gradient(145deg, #ddd6fe 0%, #a78bfa 50%, #8b5cf6 100%)',
-  HORROR:  'linear-gradient(145deg, #d1d5db 0%, #9ca3af 50%, #6b7280 100%)',
-  SCI_FI:  'linear-gradient(145deg, #bfdbfe 0%, #60a5fa 50%, #22d3ee 100%)',
-};
-
-// Эмодзи-иконка жанра на постере
 const GENRE_ICONS: Record<string, string> = {
-  ACTION: '💥',
-  COMEDY: '😄',
-  DRAMA:  '🎭',
-  HORROR: '👻',
-  SCI_FI: '🚀',
+  ACTION: '💥', COMEDY: '😂', DRAMA: '🎭', HORROR: '👻', SCI_FI: '🚀',
 };
 
-// Цвет бейджа (тёмная тема)
-const GENRE_BADGE_DARK: Record<string, { bg: string; text: string }> = {
-  ACTION: { bg: '#7f1d1d', text: '#fca5a5' },
-  COMEDY: { bg: '#78350f', text: '#fcd34d' },
-  DRAMA:  { bg: '#3b0764', text: '#c4b5fd' },
-  HORROR: { bg: '#1f2937', text: '#9ca3af' },
-  SCI_FI: { bg: '#1e3a8a', text: '#93c5fd' },
-};
-
-// Цвет бейджа (светлая тема)
-const GENRE_BADGE_LIGHT: Record<string, { bg: string; text: string }> = {
-  ACTION: { bg: '#fee2e2', text: '#991b1b' },
-  COMEDY: { bg: '#fef3c7', text: '#92400e' },
-  DRAMA:  { bg: '#ede9fe', text: '#5b21b6' },
-  HORROR: { bg: '#f3f4f6', text: '#374151' },
-  SCI_FI: { bg: '#dbeafe', text: '#1e40af' },
-};
-
-function getReviewWord(n: number): string {
-  const abs = Math.abs(n) % 100;
-  const last = abs % 10;
-  if (abs >= 11 && abs <= 19) return 'отзывов';
-  if (last === 1) return 'отзыв';
-  if (last >= 2 && last <= 4) return 'отзыва';
-  return 'отзывов';
+function Placeholder({ genre, title }: { genre: string; title: string }) {
+  const initials = title.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  return (
+    <div style={{
+      position: 'absolute', inset: 0,
+      background: GENRE_GRADIENTS[genre] || 'linear-gradient(135deg, #141414, #1f1f1f)',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center', gap: 8,
+    }}>
+      {/* Decorative circles */}
+      <div style={{
+        position: 'absolute', width: 100, height: 100, borderRadius: '50%',
+        background: 'rgba(255,255,255,0.03)', top: -20, right: -20,
+      }} />
+      <div style={{
+        position: 'absolute', width: 70, height: 70, borderRadius: '50%',
+        background: 'rgba(255,255,255,0.02)', bottom: 30, left: -15,
+      }} />
+      <span style={{ fontSize: 36, lineHeight: 1 }}>{GENRE_ICONS[genre] || '🎬'}</span>
+      <span style={{
+        fontFamily: 'Bebas Neue, cursive', fontSize: 22, letterSpacing: 2,
+        color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '0 8px',
+        overflow: 'hidden', display: '-webkit-box',
+        WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+      }}>{initials}</span>
+    </div>
+  );
 }
 
-export default function MovieCard({ movie }: { movie: Movie }) {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
+interface Props { movie: Movie; onDelete?: (id: string) => void; isAdmin?: boolean; }
 
-  const gradients = isDark ? GENRE_GRADIENTS_DARK : GENRE_GRADIENTS_LIGHT;
-  const badges = isDark ? GENRE_BADGE_DARK : GENRE_BADGE_LIGHT;
-
-  const gradient = gradients[movie.genre] ?? gradients.DRAMA;
-  const icon = GENRE_ICONS[movie.genre] ?? '🎬';
-  const badge = badges[movie.genre] ?? badges.DRAMA;
-
+export function MovieCard({ movie, onDelete, isAdmin }: Props) {
   return (
-    <Link href={`/movies/${movie.id}`} className="block group">
-      <div
-        className="rounded-xl overflow-hidden border transition-all duration-200
-          hover:-translate-y-1 hover:shadow-xl"
-        style={{
-          backgroundColor: 'var(--bg-card)',
-          borderColor: 'var(--border)',
-        }}
-      >
-        {/* Постер — градиент по жанру */}
-        <div
-          className="relative h-36 flex items-center justify-center overflow-hidden"
-          style={{ background: gradient }}
-        >
-          {/* Большой эмодзи по центру */}
-          <span className="text-5xl opacity-60 select-none">{icon}</span>
+    <div
+      style={{
+        background: 'var(--bg-card)', borderRadius: 12, overflow: 'hidden',
+        border: '1px solid var(--border)', transition: 'transform 0.2s, box-shadow 0.2s, border-color 0.2s',
+        cursor: 'pointer', position: 'relative',
+      }}
+      onMouseEnter={e => {
+        const el = e.currentTarget as HTMLDivElement;
+        el.style.transform = 'translateY(-4px)';
+        el.style.boxShadow = 'var(--shadow-lg)';
+        el.style.borderColor = 'var(--border-hover)';
+      }}
+      onMouseLeave={e => {
+        const el = e.currentTarget as HTMLDivElement;
+        el.style.transform = '';
+        el.style.boxShadow = '';
+        el.style.borderColor = 'var(--border)';
+      }}
+    >
+      <Link href={`/movies/${movie.id}`} style={{ textDecoration: 'none', display: 'block' }}>
+        {/* Poster area */}
+        <div style={{ position: 'relative', paddingTop: '148%', background: 'var(--bg-elevated)' }}>
+          {movie.posterUrl ? (
+            <img
+              src={movie.posterUrl}
+              alt={movie.title}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={e => {
+                const img = e.target as HTMLImageElement;
+                img.style.display = 'none';
+                // Show placeholder sibling
+                const ph = img.nextElementSibling as HTMLElement;
+                if (ph) ph.style.display = 'flex';
+              }}
+            />
+          ) : null}
 
-          {/* Год в правом верхнем углу */}
-          <span className="absolute top-2.5 right-3 text-white/70 text-xs font-medium">
-            {movie.year}
-          </span>
+          {/* Placeholder — always rendered, hidden if poster loaded */}
+          <div style={{ display: movie.posterUrl ? 'none' : 'flex', position: 'absolute', inset: 0 }}>
+            <Placeholder genre={movie.genre} title={movie.title} />
+          </div>
 
-          {/* Счётчик отзывов в левом нижнем углу */}
-          {movie._count !== undefined && (
-            <span className="absolute bottom-2.5 left-3 text-white/60 text-xs">
-              {movie._count.reviews} {getReviewWord(movie._count.reviews)}
+          {/* Bottom gradient overlay */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, transparent 55%)',
+            pointerEvents: 'none',
+          }} />
+
+          {/* Genre badge */}
+          <div style={{ position: 'absolute', bottom: 10, left: 10, right: 10 }}>
+            <span className={`badge ${GENRE_COLORS[movie.genre] || 'badge-action'}`} style={{ fontSize: 11 }}>
+              {GENRE_ICONS[movie.genre]} {movie.genre.replace('_', ' ')}
             </span>
-          )}
+          </div>
         </div>
 
-        {/* Текстовая часть */}
-        <div className="p-4">
-          {/* Название */}
-          <h3
-            className="font-semibold text-sm leading-snug mb-2.5 line-clamp-2
-              group-hover:text-blue-500 transition-colors"
-            style={{ color: 'var(--text-primary)' }}
-          >
+        {/* Info */}
+        <div style={{ padding: '12px 14px' }}>
+          <h3 style={{
+            fontFamily: 'Bebas Neue, cursive', fontSize: 17, letterSpacing: 0.5,
+            color: 'var(--text)', marginBottom: 4, lineHeight: 1.2,
+            overflow: 'hidden', display: '-webkit-box',
+            WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+          }}>
             {movie.title}
           </h3>
-
-          {/* Жанр — бейдж */}
-          <span
-            className="inline-block text-xs px-2 py-0.5 rounded-md font-medium"
-            style={{ backgroundColor: badge.bg, color: badge.text }}
-          >
-            {GENRE_LABELS[movie.genre] ?? movie.genre}
-          </span>
-
-          {/* Описание */}
-          {movie.description && (
-            <p
-              className="text-xs leading-relaxed line-clamp-2 mt-2.5"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              {movie.description}
-            </p>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{movie.year}</span>
+            {(movie._count?.reviews ?? 0) > 0 && (
+              <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>
+                ⭐ {movie._count!.reviews}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
-    </Link>
+      </Link>
+
+      {/* Admin delete button */}
+      {isAdmin && onDelete && (
+        <button
+          onClick={e => { e.preventDefault(); e.stopPropagation(); onDelete(movie.id); }}
+          style={{
+            position: 'absolute', top: 8, right: 8,
+            background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(239,68,68,0.5)',
+            borderRadius: 6, padding: '3px 8px', color: '#ef4444',
+            cursor: 'pointer', fontSize: 12, lineHeight: 1,
+            backdropFilter: 'blur(4px)',
+          }}
+        >✕</button>
+      )}
+    </div>
   );
 }

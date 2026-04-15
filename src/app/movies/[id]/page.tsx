@@ -1,280 +1,201 @@
-// src/app/movies/[id]/page.tsx
 'use client';
-
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { apiGetMovieWithReviews, apiDeleteReview, apiDeleteMovie, apiGetProfile } from '@/lib/api';
-import { isAuthenticated } from '@/lib/auth';
+import Link from 'next/link';
+import { apiGetMovieWithReviews, apiCreateReview, apiDeleteReview } from '@/lib/api';
+import { getAccessToken, getUserInfo, isAdmin } from '@/lib/auth';
 import type { Movie, Review } from '@/types';
-import ReviewForm from '@/components/ReviewForm';
 
-const GENRE_LABELS: Record<string, string> = {
-  ACTION: 'Боевик',
-  COMEDY: 'Комедия',
-  DRAMA:  'Драма',
-  HORROR: 'Ужасы',
-  SCI_FI: 'Фантастика',
-};
+const GENRE_ICONS: Record<string, string> = { ACTION: '💥', COMEDY: '😂', DRAMA: '🎭', HORROR: '👻', SCI_FI: '🚀' };
+const GENRE_COLORS: Record<string, string> = { ACTION: 'badge-action', COMEDY: 'badge-comedy', DRAMA: 'badge-drama', HORROR: 'badge-horror', SCI_FI: 'badge-sci_fi' };
 
-const GENRE_GRADIENTS: Record<string, string> = {
-  ACTION:  'linear-gradient(135deg, #7f1d1d, #dc2626, #f97316)',
-  COMEDY:  'linear-gradient(135deg, #78350f, #d97706, #fbbf24)',
-  DRAMA:   'linear-gradient(135deg, #3b0764, #7c3aed, #a78bfa)',
-  HORROR:  'linear-gradient(135deg, #030712, #111827, #1f2937)',
-  SCI_FI:  'linear-gradient(135deg, #0c1445, #1d4ed8, #06b6d4)',
-};
-
-const GENRE_ICONS: Record<string, string> = {
-  ACTION: '💥', COMEDY: '😄', DRAMA: '🎭', HORROR: '👻', SCI_FI: '🚀',
-};
-
-type MovieWithReviews = Movie & { reviews: Review[] };
+function StarRating({ value, onChange }: { value: number; onChange?: (v: number) => void }) {
+  const [hover, setHover] = useState(0);
+  return (
+    <div style={{ display: 'flex', gap: 4 }}>
+      {[1,2,3,4,5,6,7,8,9,10].map(n => (
+        <button key={n} type="button"
+          onMouseEnter={() => onChange && setHover(n)}
+          onMouseLeave={() => onChange && setHover(0)}
+          onClick={() => onChange?.(n)}
+          style={{
+            background: 'none', border: 'none', cursor: onChange ? 'pointer' : 'default',
+            fontSize: 18, padding: '0 1px',
+            color: n <= (hover || value) ? 'var(--gold)' : 'var(--border-hover)',
+          }}>★</button>
+      ))}
+    </div>
+  );
+}
 
 export default function MoviePage() {
   const { id } = useParams<{ id: string }>();
-  const router  = useRouter();
-
-  const [data,       setData]       = useState<MovieWithReviews | null>(null);
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState('');
-  const [loggedIn,   setLoggedIn]   = useState(false);
-  const [isAdmin,    setIsAdmin]    = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deleting,   setDeleting]   = useState(false);
+  const router = useRouter();
+  const [movie, setMovie] = useState<(Movie & { reviews: Review[] }) | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [reviewForm, setReviewForm] = useState({ rating: 7, comment: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const user = getUserInfo();
+  const admin = isAdmin();
 
   useEffect(() => {
-    const auth = isAuthenticated();
-    setLoggedIn(auth);
-    if (auth) {
-      apiGetProfile().then(u => setIsAdmin(u.role === 'ADMIN')).catch(() => {});
-    }
-  }, []);
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await apiGetMovieWithReviews(id);
-      setData(result);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Фильм не найден');
-    } finally {
-      setLoading(false);
-    }
+    apiGetMovieWithReviews(id).then(setMovie).catch(() => {}).finally(() => setLoading(false));
   }, [id]);
 
-  useEffect(() => { loadData(); }, [loadData]);
-
-  async function handleDeleteReview(reviewId: string) {
-    if (!confirm('Удалить отзыв?')) return;
-    setDeletingId(reviewId);
+  const submitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!getAccessToken()) { router.push('/login'); return; }
+    setSubmitting(true); setError('');
     try {
-      await apiDeleteReview(reviewId);
-      await loadData();
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Не удалось удалить');
-    } finally {
-      setDeletingId(null);
-    }
-  }
+      const r = await apiCreateReview({ ...reviewForm, movieId: id });
+      setMovie(m => m ? { ...m, reviews: [r, ...m.reviews] } : m);
+      setReviewForm({ rating: 7, comment: '' });
+    } catch (err: any) { setError(err.message); } finally { setSubmitting(false); }
+  };
 
-  async function handleDeleteMovie() {
-    if (!data) return;
-    if (!confirm(`Удалить фильм «${data.title}»? Это действие нельзя отменить.`)) return;
-    setDeleting(true);
-    try {
-      await apiDeleteMovie(id);
-      router.push('/');
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Не удалось удалить фильм');
-      setDeleting(false);
-    }
-  }
+  const deleteReview = async (rid: string) => {
+    await apiDeleteReview(rid);
+    setMovie(m => m ? { ...m, reviews: m.reviews.filter(r => r.id !== rid) } : m);
+  };
 
-  // ─── Скелетон загрузки ───────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-10 animate-pulse">
-        <div className="h-48 rounded-2xl mb-6" style={{ backgroundColor: 'var(--bg-input)' }} />
-        <div className="h-8 rounded w-1/2 mb-3" style={{ backgroundColor: 'var(--bg-input)' }} />
-        <div className="h-4 rounded w-1/4 mb-8" style={{ backgroundColor: 'var(--bg-input)' }} />
-        <div className="h-32 rounded-xl" style={{ backgroundColor: 'var(--bg-input)' }} />
-      </div>
-    );
-  }
+  const avgRating = movie?.reviews?.length
+    ? (movie.reviews.reduce((s, r) => s + r.rating, 0) / movie.reviews.length).toFixed(1)
+    : null;
 
-  if (error || !data) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-10 text-center">
-        <p className="text-red-400 mb-4">{error || 'Фильм не найден'}</p>
-        <button
-          onClick={() => router.back()}
-          className="text-blue-400 hover:underline"
-        >
-          ← Назад
-        </button>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
+      <div className="spinner" />
+    </div>
+  );
 
-  const avgRating =
-    data.reviews.length > 0
-      ? (data.reviews.reduce((s, r) => s + r.rating, 0) / data.reviews.length).toFixed(1)
-      : null;
-
-  const gradient = GENRE_GRADIENTS[data.genre] ?? GENRE_GRADIENTS.DRAMA;
-  const icon     = GENRE_ICONS[data.genre] ?? '🎬';
+  if (!movie) return (
+    <div style={{ textAlign: 'center', padding: 80 }}>
+      <p style={{ color: 'var(--text-muted)' }}>Movie not found</p>
+      <Link href="/" className="btn btn-ghost" style={{ marginTop: 16 }}>← Back</Link>
+    </div>
+  );
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      {/* Кнопка назад */}
-      <button
-        onClick={() => router.back()}
-        className="text-sm mb-6 flex items-center gap-1 transition-colors hover:text-blue-400"
-        style={{ color: 'var(--text-muted)' }}
-      >
-        ← К списку фильмов
-      </button>
+    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
+      <Link href="/" style={{ color: 'var(--text-muted)', textDecoration: 'none', fontSize: 14, display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 24 }}>
+        ← Back to movies
+      </Link>
 
-      {/* Постер-шапка */}
-      <div
-        className="relative rounded-2xl overflow-hidden mb-6 h-48 flex items-end"
-        style={{ background: gradient }}
-      >
-        {/* Большой эмодзи */}
-        <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
-          text-7xl opacity-30 select-none">
-          {icon}
-        </span>
+      {/* Hero */}
+      <div className="fade-up" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,280px) 1fr', gap: 32, marginBottom: 40 }}>
+        <div style={{ borderRadius: 16, overflow: 'hidden', aspectRatio: '2/3', background: 'var(--bg-elevated)', flexShrink: 0 }}>
+          {movie.posterUrl ? (
+            <img src={movie.posterUrl} alt={movie.title}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
+          ) : null}
+          {/* Placeholder when no poster */}
+          {!movie.posterUrl && (
+            <div style={{
+              width: '100%', height: '100%',
+              background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%)',
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center', gap: 12,
+            }}>
+              <span style={{ fontSize: 80 }}>{GENRE_ICONS[movie.genre] || '🎬'}</span>
+              <span style={{
+                fontFamily: 'Bebas Neue, cursive', fontSize: 18,
+                color: 'rgba(255,255,255,0.25)', letterSpacing: 3, textAlign: 'center',
+              }}>{movie.genre.replace('_',' ')}</span>
+            </div>
+          )}
+        </div>
 
-        {/* Инфо поверх градиента */}
-        <div className="relative z-10 p-6 w-full"
-          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)' }}>
-          <h1 className="text-3xl font-bold text-white">{data.title}</h1>
-          <div className="flex items-center gap-3 mt-1.5 flex-wrap text-sm">
-            <span className="text-white/70">{data.year}</span>
-            <span className="text-white/40">•</span>
-            <span className="text-white/70">{GENRE_LABELS[data.genre] ?? data.genre}</span>
-            {avgRating && (
-              <>
-                <span className="text-white/40">•</span>
-                <span className="flex items-center gap-1">
-                  <span className="text-yellow-400">★</span>
-                  <span className="text-white font-semibold">{avgRating}</span>
-                  <span className="text-white/50 text-xs">({data.reviews.length})</span>
-                </span>
-              </>
-            )}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+            <span className={`badge ${GENRE_COLORS[movie.genre]}`}>{GENRE_ICONS[movie.genre]} {movie.genre.replace('_',' ')}</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>{movie.year}</span>
           </div>
+
+          <h1 style={{ fontFamily: 'Bebas Neue, cursive', fontSize: 'clamp(32px,5vw,56px)', letterSpacing: 2, marginBottom: 16, lineHeight: 1.1 }}>
+            {movie.title}
+          </h1>
+
+          {avgRating && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+              <span style={{ fontFamily: 'Bebas Neue, cursive', fontSize: 36, color: 'var(--gold)' }}>{avgRating}</span>
+              <div>
+                <div style={{ color: 'var(--gold)', fontSize: 18 }}>{'★'.repeat(Math.round(+avgRating / 2))}</div>
+                <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>{movie.reviews.length} reviews</div>
+              </div>
+            </div>
+          )}
+
+          {movie.description && (
+            <p style={{ color: 'var(--text-muted)', lineHeight: 1.7, maxWidth: 600, marginBottom: 24 }}>
+              {movie.description}
+            </p>
+          )}
+
+          {admin && (
+            <Link href={`/admin/movies/${movie.id}`} className="btn btn-ghost btn-sm">
+              ✏ Edit Movie
+            </Link>
+          )}
         </div>
       </div>
 
-      {/* Описание + кнопка удаления для админа */}
-      {(data.description || isAdmin) && (
-        <div
-          className="rounded-2xl border p-6 mb-8 flex justify-between items-start gap-4"
-          style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
-        >
-          {data.description && (
-            <p className="leading-relaxed text-sm" style={{ color: 'var(--text-secondary)' }}>
-              {data.description}
-            </p>
-          )}
-          {isAdmin && (
-            <button
-              onClick={handleDeleteMovie}
-              disabled={deleting}
-              className="flex-shrink-0 text-xs px-3 py-1.5 rounded-lg border
-                text-red-400 border-red-900/50 hover:bg-red-900/20
-                disabled:opacity-50 transition-colors"
-            >
-              {deleting ? 'Удаление...' : 'Удалить фильм'}
+      {/* Review form */}
+      {getAccessToken() && (
+        <div className="card fade-up" style={{ marginBottom: 32 }}>
+          <h3 style={{ fontFamily: 'Bebas Neue, cursive', fontSize: 22, letterSpacing: 1, marginBottom: 16 }}>
+            Write a Review
+          </h3>
+          <form onSubmit={submitReview} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 8 }}>
+                Rating: <strong style={{ color: 'var(--gold)' }}>{reviewForm.rating}/10</strong>
+              </label>
+              <StarRating value={reviewForm.rating} onChange={v => setReviewForm(f => ({ ...f, rating: v }))} />
+            </div>
+            <textarea rows={3} placeholder="Share your thoughts..." value={reviewForm.comment}
+              onChange={e => setReviewForm(f => ({ ...f, comment: e.target.value }))} />
+            {error && <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>}
+            <button className="btn btn-primary" type="submit" disabled={submitting} style={{ alignSelf: 'flex-start' }}>
+              {submitting ? 'Posting…' : 'Post Review'}
             </button>
-          )}
+          </form>
         </div>
       )}
 
-      {/* Форма отзыва */}
-      {loggedIn ? (
-        <div className="mb-8">
-          <ReviewForm movieId={id} onReviewAdded={loadData} />
-        </div>
-      ) : (
-        <div
-          className="rounded-xl border p-4 mb-8 text-center"
-          style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
-        >
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Чтобы оставить отзыв,{' '}
-            <a href="/login" className="text-blue-400 hover:underline">
-              войдите в аккаунт
-            </a>
-          </p>
-        </div>
-      )}
-
-      {/* Список отзывов */}
-      <div>
-        <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
-          Отзывы{data.reviews.length > 0 && ` (${data.reviews.length})`}
-        </h2>
-
-        {data.reviews.length === 0 ? (
-          <div
-            className="text-center py-10 rounded-xl border"
-            style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
-          >
-            Отзывов пока нет. Будь первым!
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {data.reviews.map((review: Review) => (
-              <div
-                key={review.id}
-                className="rounded-xl border p-4"
-                style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
-              >
-                <div className="flex justify-between items-start">
+      {/* Reviews list */}
+      {movie.reviews.length > 0 && (
+        <div className="fade-up">
+          <h2 style={{ fontFamily: 'Bebas Neue, cursive', fontSize: 28, letterSpacing: 1, marginBottom: 20 }}>
+            Reviews <span style={{ color: 'var(--text-dim)', fontSize: 18 }}>({movie.reviews.length})</span>
+          </h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {movie.reviews.map(r => (
+              <div key={r.id} className="card" style={{ padding: '16px 20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                   <div>
-                    <span className="text-blue-400 font-medium text-sm">
-                      {review.user?.name ?? 'Аноним'}
-                    </span>
-                    <span className="text-xs ml-3" style={{ color: 'var(--text-muted)' }}>
-                      {new Date(review.createdAt).toLocaleDateString('ru-RU', {
-                        day: 'numeric', month: 'long', year: 'numeric',
-                      })}
+                    <span style={{ fontWeight: 600, fontSize: 14 }}>{r.user.name}</span>
+                    <span style={{ color: 'var(--text-dim)', fontSize: 12, marginLeft: 10 }}>
+                      {new Date(r.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1">
-                      <span className="text-yellow-400 text-sm">★</span>
-                      <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                        {review.rating}/10
-                      </span>
-                    </div>
-                    {loggedIn && (
-                      <button
-                        onClick={() => handleDeleteReview(review.id)}
-                        disabled={deletingId === review.id}
-                        className="text-xs transition-colors disabled:opacity-50
-                          hover:text-red-400"
-                        style={{ color: 'var(--text-muted)' }}
-                      >
-                        {deletingId === review.id ? '...' : 'Удалить'}
-                      </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ background: 'var(--accent-dim)', color: 'var(--gold)', borderRadius: 6, padding: '2px 10px', fontSize: 14, fontWeight: 600 }}>
+                      ★ {r.rating}/10
+                    </span>
+                    {(admin || r.userId === user?.id) && (
+                      <button onClick={() => deleteReview(r.id)} className="btn btn-danger btn-sm">✕</button>
                     )}
                   </div>
                 </div>
-
-                {review.comment && (
-                  <p className="text-sm mt-2 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                    {review.comment}
-                  </p>
-                )}
+                {r.comment && <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>{r.comment}</p>}
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

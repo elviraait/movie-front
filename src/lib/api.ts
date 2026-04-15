@@ -1,178 +1,134 @@
-// src/lib/api.ts
-import { getAccessToken, saveAccessToken, clearAccessToken } from "./auth";
-import type { Movie, MoviesResponse, MoviesQuery, Review, User } from "@/types";
+import { getAccessToken, saveAccessToken, clearAccessToken, saveUserInfo } from './auth';
+import type { Movie, MoviesResponse, MoviesQuery, Review, User, AdminStats, Role } from '@/types';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"; // Адрес NestJS
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
-// ─── Базовая функция запроса ───────────────────────────────────────────────
+async function request<T>(endpoint: string, options: RequestInit = {}, isRetry = false): Promise<T> {
+  const token = getAccessToken();
+  const isFormData = options.body instanceof FormData;
 
-async function request<T>(
-  endpoint: string,
-  options: RequestInit = {},
-  isRetry = false, // флаг чтобы не зациклиться при рефреше
-): Promise<T> {
-  const accessToken = getAccessToken();
+  const headers: Record<string, string> = {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+    ...(options.headers as Record<string, string>),
+  };
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    credentials: "include", // ВАЖНО: отправляем httpOnly cookie (refreshToken)
-    headers: {
-      "Content-Type": "application/json",
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...options.headers,
-    },
-  });
+  const res = await fetch(`${BASE_URL}${endpoint}`, { ...options, credentials: 'include', headers });
 
-  // Если токен истёк — пробуем обновить
-  if (response.status === 401 && !isRetry) {
-    const refreshed = await tryRefreshToken();
-    if (refreshed) {
-      // Повторяем запрос с новым токеном
-      return request<T>(endpoint, options, true);
-    } else {
-      // Рефреш не помог — выходим
-      clearAccessToken();
-      if (typeof window !== "undefined") {
-        window.location.href = "/login";
-      }
-      throw new Error("Сессия истекла. Войдите снова.");
-    }
+  if (res.status === 401 && !isRetry) {
+    const refreshed = await tryRefresh();
+    if (refreshed) return request<T>(endpoint, options, true);
+    clearAccessToken();
+    if (typeof window !== 'undefined') window.location.href = '/login';
+    throw new Error('Session expired');
   }
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `Ошибка ${response.status}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const msg = Array.isArray(err.message) ? err.message.join(', ') : (err.message || `Error ${res.status}`);
+    throw new Error(msg);
   }
 
-  // 204 No Content — сервер ничего не вернул
-  if (response.status === 204) return null as T;
-
-  return response.json();
+  if (res.status === 204) return null as T;
+  return res.json();
 }
 
-// Обновляем accessToken через refreshToken (который в httpOnly cookie)
-async function tryRefreshToken(): Promise<boolean> {
+async function tryRefresh(): Promise<boolean> {
   try {
-    const response = await fetch(`${BASE_URL}/auth/refresh`, {
-      method: "POST",
-      credentials: "include", // браузер сам отправит httpOnly refreshToken cookie
-    });
-    if (!response.ok) return false;
-
-    const data = await response.json();
+    const res = await fetch(`${BASE_URL}/auth/refresh`, { method: 'POST', credentials: 'include' });
+    if (!res.ok) return false;
+    const data = await res.json();
     saveAccessToken(data.accessToken);
     return true;
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
 
-// ─── AUTH ──────────────────────────────────────────────────────────────────
-
-// POST /auth/register → { accessToken }
-export async function apiRegister(
-  email: string,
-  password: string,
-  name: string,
-): Promise<{ accessToken: string }> {
-  return request("/auth/register", {
-    method: "POST",
-    body: JSON.stringify({ email, password, name }),
+// ── AUTH ──────────────────────────────────────────────────────────
+export async function apiRegister(email: string, password: string, name: string) {
+  const data = await request<{ accessToken: string }>('/auth/register', {
+    method: 'POST', body: JSON.stringify({ email, password, name }),
   });
+  saveAccessToken(data.accessToken);
+  return data;
 }
 
-// POST /auth/login → { accessToken }
-export async function apiLogin(
-  email: string,
-  password: string,
-): Promise<{ accessToken: string }> {
-  return request("/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
+export async function apiLogin(email: string, password: string) {
+  const data = await request<{ accessToken: string }>('/auth/login', {
+    method: 'POST', body: JSON.stringify({ email, password }),
   });
+  saveAccessToken(data.accessToken);
+  return data;
 }
 
-// POST /auth/logout — очищает cookie на сервере
-export async function apiLogout(): Promise<void> {
-  return request("/auth/logout", { method: "POST" });
+export async function apiLogout() {
+  await request('/auth/logout', { method: 'POST' });
+  clearAccessToken();
 }
 
-// ─── USERS ─────────────────────────────────────────────────────────────────
-
-// GET /users/profile → полный профиль с отзывами
+// ── USERS ─────────────────────────────────────────────────────────
 export async function apiGetProfile(): Promise<User> {
-  return request<User>("/users/profile");
+  return request<User>('/users/profile');
 }
 
-// ─── MOVIES ────────────────────────────────────────────────────────────────
-
-// GET /movies?page=1&limit=10&genre=ACTION... → { data, meta }
-export async function apiGetMovies(
-  query: MoviesQuery = {},
-): Promise<MoviesResponse> {
-  const params = new URLSearchParams();
-  if (query.page) params.set("page", String(query.page));
-  if (query.limit) params.set("limit", String(query.limit));
-  if (query.genre) params.set("genre", query.genre);
-  if (query.year) params.set("year", String(query.year));
-  if (query.title) params.set("title", query.title);
-  if (query.sortBy) params.set("sortBy", query.sortBy);
-  if (query.order) params.set("order", query.order);
-
-  const qs = params.toString();
-  return request<MoviesResponse>(`/movies${qs ? `?${qs}` : ""}`);
+export async function apiGetAllUsers(): Promise<User[]> {
+  return request<User[]>('/users');
 }
 
-// GET /movies/:id → один фильм
+export async function apiUpdateUserRole(id: string, role: Role): Promise<User> {
+  return request<User>(`/users/${id}/role`, {
+    method: 'PATCH', body: JSON.stringify({ role }),
+  });
+}
+
+export async function apiDeleteUser(id: string): Promise<void> {
+  return request<void>(`/users/${id}`, { method: 'DELETE' });
+}
+
+// ── MOVIES ────────────────────────────────────────────────────────
+export async function apiGetMovies(query: MoviesQuery = {}): Promise<MoviesResponse> {
+  const p = new URLSearchParams();
+  Object.entries(query).forEach(([k, v]) => { if (v !== undefined && v !== '') p.set(k, String(v)); });
+  const qs = p.toString();
+  return request<MoviesResponse>(`/movies${qs ? `?${qs}` : ''}`);
+}
+
 export async function apiGetMovie(id: string): Promise<Movie> {
   return request<Movie>(`/movies/${id}`);
 }
 
-// GET /movies/:id/reviews → фильм + массив отзывов с пользователями
-export async function apiGetMovieWithReviews(
-  id: string,
-): Promise<Movie & { reviews: Review[] }> {
+export async function apiGetMovieWithReviews(id: string): Promise<Movie & { reviews: Review[] }> {
   return request(`/movies/${id}/reviews`);
 }
 
-// POST /movies → создать фильм (только ADMIN)
-export async function apiCreateMovie(data: {
-  title: string;
-  description?: string;
-  year: number;
-  genre: string;
-}): Promise<Movie> {
-  return request<Movie>("/movies", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
+export async function apiCreateMovie(data: Partial<Movie>): Promise<Movie> {
+  return request<Movie>('/movies', { method: 'POST', body: JSON.stringify(data) });
 }
 
-// DELETE /movies/:id → удалить фильм (только ADMIN)
+export async function apiUpdateMovie(id: string, data: Partial<Movie>): Promise<Movie> {
+  return request<Movie>(`/movies/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+}
+
 export async function apiDeleteMovie(id: string): Promise<void> {
-  return request<void>(`/movies/${id}`, { method: "DELETE" });
+  return request<void>(`/movies/${id}`, { method: 'DELETE' });
 }
 
-// ─── REVIEWS ───────────────────────────────────────────────────────────────
-
-// GET /reviews/movie/:movieId → все отзывы на фильм
-export async function apiGetReviewsByMovie(movieId: string): Promise<Review[]> {
-  return request<Review[]>(`/reviews/movie/${movieId}`);
+// ── REVIEWS ───────────────────────────────────────────────────────
+export async function apiCreateReview(data: { rating: number; comment?: string; movieId: string }): Promise<Review> {
+  return request<Review>('/reviews', { method: 'POST', body: JSON.stringify(data) });
 }
 
-// POST /reviews → создать отзыв (требует авторизации)
-export async function apiCreateReview(data: {
-  rating: number;
-  comment?: string;
-  movieId: string;
-}): Promise<Review> {
-  return request<Review>("/reviews", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-}
-
-// DELETE /reviews/:id → удалить свой отзыв
 export async function apiDeleteReview(id: string): Promise<void> {
-  return request<void>(`/reviews/${id}`, { method: "DELETE" });
+  return request<void>(`/reviews/${id}`, { method: 'DELETE' });
+}
+
+// ── FILE ──────────────────────────────────────────────────────────
+export async function apiUploadPoster(file: File): Promise<{ url: string }> {
+  const form = new FormData();
+  form.append('file', file);
+  return request<{ url: string }>('/file', { method: 'POST', body: form });
+}
+
+// ── ADMIN ─────────────────────────────────────────────────────────
+export async function apiGetAdminStats(): Promise<AdminStats> {
+  return request<AdminStats>('/admin/stats');
 }

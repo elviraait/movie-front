@@ -1,27 +1,41 @@
-// src/lib/auth.ts
 import Cookies from 'js-cookie';
+import type { Role } from '@/types';
 
-const ACCESS_TOKEN_KEY = 'accessToken';
+const TOKEN_KEY = 'access_token';
 
-// Сохраняем accessToken в cookie на 3 часа
-export function saveAccessToken(token: string) {
-  Cookies.set(ACCESS_TOKEN_KEY, token, {
-    expires: 3 / 24,  // 3 час (3/24 от суток)
-    sameSite: 'lax',
-  });
+export function getAccessToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return Cookies.get(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
 }
 
-// Читаем accessToken из cookie
-export function getAccessToken(): string | undefined {
-  return Cookies.get(ACCESS_TOKEN_KEY);
+export function saveAccessToken(token: string): void {
+  Cookies.set(TOKEN_KEY, token, { expires: 1 / 8, sameSite: 'lax' });
+  localStorage.setItem(TOKEN_KEY, token);
 }
 
-// Удаляем accessToken (при выходе)
-export function clearAccessToken() {
-  Cookies.remove(ACCESS_TOKEN_KEY);
+export function clearAccessToken(): void {
+  Cookies.remove(TOKEN_KEY);
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem('user_info');
 }
 
-// Проверяем: есть ли токен (= авторизован ли пользователь)
-export function isAuthenticated(): boolean {
-  return !!Cookies.get(ACCESS_TOKEN_KEY);
+export function getUserInfo(): { id: string; name: string; email: string; role: Role } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('user_info');
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+export function saveUserInfo(info: { id: string; name: string; email: string; role: Role }): void {
+  localStorage.setItem('user_info', JSON.stringify(info));
+}
+
+export function isAdmin(): boolean {
+  const role = getUserInfo()?.role;
+  return role === 'ADMIN' || role === 'SUPER_ADMIN';
+}
+
+export function isSuperAdmin(): boolean {
+  return getUserInfo()?.role === 'SUPER_ADMIN';
 }
