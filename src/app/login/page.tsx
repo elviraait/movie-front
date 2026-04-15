@@ -2,9 +2,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { apiLogin } from '@/lib/api';
-import { apiGetProfile } from '@/lib/api';
+import { apiLogin, apiGetProfile } from '@/lib/api';
 import { saveUserInfo } from '@/lib/auth';
+import { notifyAuthChanged } from '@/contexts/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,21 +14,26 @@ export default function LoginPage() {
 
   const handle = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(''); setLoading(true);
+    setError('');
+    setLoading(true);
     try {
       await apiLogin(form.email, form.password);
       const profile = await apiGetProfile();
       saveUserInfo({ id: profile.id, name: profile.name, email: profile.email, role: profile.role });
-      router.push(profile.role === 'ADMIN' ? '/admin' : '/');
+      // Tell Navbar to update immediately
+      notifyAuthChanged();
+      router.push(profile.role === 'ADMIN' || profile.role === 'SUPER_ADMIN' ? '/admin' : '/');
     } catch (err: any) {
-      setError(err.message || 'Login failed');
-    } finally { setLoading(false); }
+      setError(err.message || 'Invalid email or password');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div style={{
-      minHeight: 'calc(100vh - 60px)', display: 'flex', alignItems: 'center',
-      justifyContent: 'center', padding: 24,
+      minHeight: 'calc(100vh - 60px)', display: 'flex',
+      alignItems: 'center', justifyContent: 'center', padding: 24,
     }}>
       <div className="fade-up card" style={{ width: '100%', maxWidth: 400 }}>
         <h1 style={{ fontFamily: 'Bebas Neue, cursive', fontSize: 32, letterSpacing: 2, marginBottom: 4 }}>
@@ -57,7 +62,8 @@ export default function LoginPage() {
             }}>{error}</div>
           )}
 
-          <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%', marginTop: 4, padding: '12px' }}>
+          <button className="btn btn-primary" type="submit" disabled={loading}
+            style={{ width: '100%', marginTop: 4, padding: '12px' }}>
             {loading ? 'Signing in…' : 'Sign In'}
           </button>
         </form>

@@ -1,26 +1,26 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getAccessToken, isAdmin } from '@/lib/auth';
+import { useAuth } from '@/contexts/AuthContext';
 import { AdminSidebar } from '@/components/admin/Sidebar';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [ok, setOk] = useState(false);
+  const { user, loading } = useAuth();
 
   useEffect(() => {
-    if (!getAccessToken() || !isAdmin()) {
+    if (!loading && (!user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN'))) {
       router.replace('/login');
-    } else {
-      setOk(true);
     }
-  }, [router]);
+  }, [user, loading, router]);
 
-  if (!ok) return (
+  if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
       <div className="spinner" />
     </div>
   );
+
+  if (!user || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) return null;
 
   return (
     <div style={{ display: 'flex', minHeight: 'calc(100vh - 60px)' }}>

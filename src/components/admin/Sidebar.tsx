@@ -1,9 +1,9 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { isSuperAdmin, getUserInfo } from '@/lib/auth';
+import { useAuth } from '@/contexts/AuthContext';
 
-const BASE_NAV = [
+const NAV = [
   { href: '/admin',               label: 'Dashboard', icon: '📊' },
   { href: '/admin/movies',        label: 'Movies',    icon: '🎬' },
   { href: '/admin/movies/create', label: 'Add Movie', icon: '➕' },
@@ -13,8 +13,8 @@ const BASE_NAV = [
 
 export function AdminSidebar() {
   const path = usePathname();
-  const superAdmin = isSuperAdmin();
-  const user = getUserInfo();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
 
   return (
     <aside style={{
@@ -23,7 +23,6 @@ export function AdminSidebar() {
       minHeight: 'calc(100vh - 60px)', padding: '24px 0',
       position: 'sticky', top: 60, display: 'flex', flexDirection: 'column',
     }}>
-      {/* Role badge */}
       <div style={{ padding: '0 16px 20px', borderBottom: '1px solid var(--border)', marginBottom: 8 }}>
         <p style={{ fontSize: 11, letterSpacing: 1.5, color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 600, marginBottom: 8 }}>
           Admin Panel
@@ -31,11 +30,11 @@ export function AdminSidebar() {
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
           padding: '4px 12px', borderRadius: 99, fontSize: 12, fontWeight: 500,
-          background: superAdmin ? 'rgba(245,197,24,0.12)' : 'var(--accent-dim)',
-          color: superAdmin ? '#f5c518' : 'var(--accent)',
-          border: `1px solid ${superAdmin ? 'rgba(245,197,24,0.4)' : 'var(--accent)'}`,
+          background: isSuperAdmin ? 'rgba(245,197,24,0.12)' : 'var(--accent-dim)',
+          color: isSuperAdmin ? '#f5c518' : 'var(--accent)',
+          border: `1px solid ${isSuperAdmin ? 'rgba(245,197,24,0.4)' : 'var(--accent)'}`,
         }}>
-          {superAdmin ? '👑 Super Admin' : '⚙️ Admin'}
+          {isSuperAdmin ? '👑 Super Admin' : '⚙️ Admin'}
         </div>
         {user && (
           <p style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -44,9 +43,8 @@ export function AdminSidebar() {
         )}
       </div>
 
-      {/* Nav links */}
       <nav style={{ flex: 1 }}>
-        {BASE_NAV.map(({ href, label, icon }) => {
+        {NAV.map(({ href, label, icon }) => {
           const active = href === '/admin' ? path === '/admin' : path.startsWith(href) && href !== '/admin';
           return (
             <Link key={href} href={href} style={{
@@ -59,8 +57,7 @@ export function AdminSidebar() {
             }}>
               <span style={{ fontSize: 16, width: 20, textAlign: 'center' }}>{icon}</span>
               <span>{label}</span>
-              {/* Mark Users as special for superadmin */}
-              {href === '/admin/users' && superAdmin && (
+              {href === '/admin/users' && isSuperAdmin && (
                 <span style={{ marginLeft: 'auto', fontSize: 10, background: 'rgba(245,197,24,0.15)', color: '#f5c518', padding: '1px 7px', borderRadius: 99 }}>
                   manage
                 </span>
@@ -70,14 +67,13 @@ export function AdminSidebar() {
         })}
       </nav>
 
-      {/* Permission legend */}
-      <div style={{ padding: '16px', borderTop: '1px solid var(--border)', marginTop: 'auto' }}>
+      <div style={{ padding: '16px', borderTop: '1px solid var(--border)' }}>
         <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 8 }}>Permission levels:</p>
         {[
-          { icon: '👑', label: 'Super Admin', desc: 'Full control' },
+          { icon: '👑', label: 'Super Admin', desc: 'Full control + roles' },
           { icon: '⚙️', label: 'Admin',       desc: 'Manage movies' },
         ].map(r => (
-          <div key={r.label} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 6 }}>
+          <div key={r.label} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
             <span style={{ fontSize: 13 }}>{r.icon}</span>
             <div>
               <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>{r.label}</p>
