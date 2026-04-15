@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import Link from 'next/link';
 import type { Movie } from '@/types';
 
@@ -7,7 +8,6 @@ const GENRE_COLORS: Record<string, string> = {
   HORROR: 'badge-horror', SCI_FI: 'badge-sci_fi',
 };
 
-// Unique gradient per genre for the placeholder
 const GENRE_GRADIENTS: Record<string, string> = {
   ACTION:  'linear-gradient(135deg, #1a0000 0%, #3d0000 50%, #1a0505 100%)',
   COMEDY:  'linear-gradient(135deg, #1a1500 0%, #3d3000 50%, #1a1a05 100%)',
@@ -29,7 +29,6 @@ function Placeholder({ genre, title }: { genre: string; title: string }) {
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center', gap: 8,
     }}>
-      {/* Decorative circles */}
       <div style={{
         position: 'absolute', width: 100, height: 100, borderRadius: '50%',
         background: 'rgba(255,255,255,0.03)', top: -20, right: -20,
@@ -52,6 +51,11 @@ function Placeholder({ genre, title }: { genre: string; title: string }) {
 interface Props { movie: Movie; onDelete?: (id: string) => void; isAdmin?: boolean; }
 
 export function MovieCard({ movie, onDelete, isAdmin }: Props) {
+  const [imgError, setImgError] = useState(false);
+
+  // Показываем заглушку только если нет URL или картинка не загрузилась
+  const showPlaceholder = !movie.posterUrl || imgError;
+
   return (
     <div
       style={{
@@ -75,25 +79,16 @@ export function MovieCard({ movie, onDelete, isAdmin }: Props) {
       <Link href={`/movies/${movie.id}`} style={{ textDecoration: 'none', display: 'block' }}>
         {/* Poster area */}
         <div style={{ position: 'relative', paddingTop: '148%', background: 'var(--bg-elevated)' }}>
-          {movie.posterUrl ? (
-            <img
-              src={movie.posterUrl}
-              alt={movie.title}
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-              onError={e => {
-                const img = e.target as HTMLImageElement;
-                img.style.display = 'none';
-                // Show placeholder sibling
-                const ph = img.nextElementSibling as HTMLElement;
-                if (ph) ph.style.display = 'flex';
-              }}
-            />
-          ) : null}
-
-          {/* Placeholder — always rendered, hidden if poster loaded */}
-          <div style={{ display: movie.posterUrl ? 'none' : 'flex', position: 'absolute', inset: 0 }}>
+          {showPlaceholder ? (
             <Placeholder genre={movie.genre} title={movie.title} />
-          </div>
+          ) : (
+            <img
+              src={movie.posterUrl!}
+              alt={movie.title}
+              onError={() => setImgError(true)}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          )}
 
           {/* Bottom gradient overlay */}
           <div style={{
