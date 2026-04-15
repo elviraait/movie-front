@@ -1,33 +1,43 @@
 'use client';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getAccessToken, getUserInfo, clearAccessToken, isAdmin, isSuperAdmin, saveUserInfo } from '@/lib/auth';
 import { apiGetProfile, apiLogout } from '@/lib/api';
 
-export function Navbar() {
+type UserInfo = { name: string; role: string } | null;
+
+interface NavbarProps {
+  // Passed from the Server Component layout — avoids client-side fetch on first load
+  initialUser?: { id: string; name: string; email: string; role: string } | null;
+}
+
+export function Navbar({ initialUser }: NavbarProps) {
   const { theme, toggle } = useTheme();
   const router = useRouter();
-  const pathname = usePathname();
-  const [mounted, setMounted] = useState(false);
-  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
+
+  // If server already gave us the user, start with it — no flash, no delay
+  const [user, setUser] = useState<UserInfo>(initialUser ?? null);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Only need mounted guard if we didn't get initialUser from server
+  const [mounted, setMounted] = useState(!!initialUser);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  useEffect(() => {
     const token = getAccessToken();
     if (!token) { setUser(null); return; }
+
+    // Use localStorage cache — no network request if already have data
     const cached = getUserInfo();
     if (cached) { setUser(cached); return; }
+
+    // Only hits network on very first load (no cache yet)
     apiGetProfile().then(p => {
       saveUserInfo({ id: p.id, name: p.name, email: p.email, role: p.role });
       setUser(p);
     }).catch(() => setUser(null));
-  }, [pathname]);
+  }, []); // ← no pathname dep: profile doesn't change on navigation
 
   const handleLogout = async () => {
     await apiLogout();
@@ -36,8 +46,7 @@ export function Navbar() {
     router.push('/login');
   };
 
-  // Only read client-only auth state after mount
-  const adminAccess = mounted && isAdmin();
+  const adminAccess  = mounted && isAdmin();
   const superAdminAccess = mounted && isSuperAdmin();
 
   return (
@@ -73,9 +82,7 @@ export function Navbar() {
           {theme === 'dark' ? '☀️' : '🌙'}
         </button>
 
-        {/* Gate the entire auth section on mounted to avoid SSR mismatch */}
         {!mounted ? (
-          // Render a placeholder with the same dimensions so layout doesn't shift
           <div style={{ width: 80, height: 34 }} />
         ) : user ? (
           <div style={{ position: 'relative' }}>
