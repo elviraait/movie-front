@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -9,11 +9,7 @@ export function Navbar() {
   const { theme, toggle } = useTheme();
   const { user, logout } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-
-  // Закрывать дропдаун при любой навигации
-  useEffect(() => { setMenuOpen(false); }, [pathname]);
 
   const handleLogout = async () => {
     setMenuOpen(false);
@@ -59,6 +55,7 @@ export function Navbar() {
 
         {user ? (
           <div style={{ position: 'relative' }}>
+            {/* Avatar button */}
             <button
               onClick={() => setMenuOpen(o => !o)}
               style={{
@@ -73,8 +70,10 @@ export function Navbar() {
               {isSuperAdmin ? '👑 ' : ''}{user.name.split(' ')[0]} ▾
             </button>
 
+            {/* Dropdown */}
             {menuOpen && (
               <>
+                {/* backdrop */}
                 <div
                   style={{ position: 'fixed', inset: 0, zIndex: 150 }}
                   onClick={() => setMenuOpen(false)}
@@ -85,6 +84,7 @@ export function Navbar() {
                   borderRadius: 10, padding: 8, minWidth: 190,
                   boxShadow: 'var(--shadow-lg)',
                 }}>
+                  {/* Role header */}
                   <div style={{
                     padding: '6px 12px 10px',
                     borderBottom: '1px solid var(--border)', marginBottom: 4,
@@ -100,7 +100,7 @@ export function Navbar() {
                     </p>
                   </div>
 
-                  <Link href="/profile" style={{
+                  <Link href="/profile" onClick={() => setMenuOpen(false)} style={{
                     display: 'flex', alignItems: 'center', gap: 8,
                     padding: '8px 12px', borderRadius: 6,
                     color: 'var(--text)', textDecoration: 'none', fontSize: 14,
@@ -109,7 +109,7 @@ export function Navbar() {
                   </Link>
 
                   {isAdmin && (
-                    <Link href="/admin" style={{
+                    <Link href="/admin" onClick={() => setMenuOpen(false)} style={{
                       display: 'flex', alignItems: 'center', gap: 8,
                       padding: '8px 12px', borderRadius: 6,
                       color: 'var(--text)', textDecoration: 'none', fontSize: 14,

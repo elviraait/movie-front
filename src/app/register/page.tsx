@@ -1,34 +1,49 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiRegister, apiGetProfile } from '@/lib/api';
 import { saveUserInfo } from '@/lib/auth';
-import { notifyAuthChanged } from '@/contexts/AuthContext';
+import { useAuth, notifyAuthChanged } from '@/contexts/AuthContext';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { user, loading } = useAuth();
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Guard: already logged in → redirect away
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace('/');
+    }
+  }, [user, loading, router]);
 
   const handle = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
+    setSubmitting(true);
     try {
       await apiRegister(form.email, form.password, form.name);
       const profile = await apiGetProfile();
       saveUserInfo({ id: profile.id, name: profile.name, email: profile.email, role: profile.role });
-      // Tell Navbar to update immediately
       notifyAuthChanged();
-      router.push('/');
+      router.replace('/');
     } catch (err: any) {
       setError(err.message || 'Registration failed');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
+
+  if (loading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 'calc(100vh - 60px)' }}>
+      <div className="spinner" />
+    </div>
+  );
+
+  if (user) return null;
 
   return (
     <div style={{
@@ -66,9 +81,9 @@ export default function RegisterPage() {
             }}>{error}</div>
           )}
 
-          <button className="btn btn-primary" type="submit" disabled={loading}
+          <button className="btn btn-primary" type="submit" disabled={submitting}
             style={{ width: '100%', marginTop: 4, padding: '12px' }}>
-            {loading ? 'Creating account…' : 'Create Account'}
+            {submitting ? 'Creating account…' : 'Create Account'}
           </button>
         </form>
 

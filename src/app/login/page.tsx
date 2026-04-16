@@ -1,34 +1,50 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiLogin, apiGetProfile } from '@/lib/api';
 import { saveUserInfo } from '@/lib/auth';
-import { notifyAuthChanged } from '@/contexts/AuthContext';
+import { useAuth, notifyAuthChanged } from '@/contexts/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { user, loading } = useAuth();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Guard: already logged in → redirect away
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace(user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' ? '/admin' : '/');
+    }
+  }, [user, loading, router]);
 
   const handle = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
+    setSubmitting(true);
     try {
       await apiLogin(form.email, form.password);
       const profile = await apiGetProfile();
       saveUserInfo({ id: profile.id, name: profile.name, email: profile.email, role: profile.role });
-      // Tell Navbar to update immediately
       notifyAuthChanged();
-      router.push(profile.role === 'ADMIN' || profile.role === 'SUPER_ADMIN' ? '/admin' : '/');
+      router.replace(profile.role === 'ADMIN' || profile.role === 'SUPER_ADMIN' ? '/admin' : '/');
     } catch (err: any) {
       setError(err.message || 'Invalid email or password');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
+
+  // Don't flash form while checking auth
+  if (loading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 'calc(100vh - 60px)' }}>
+      <div className="spinner" />
+    </div>
+  );
+
+  if (user) return null; // redirecting
 
   return (
     <div style={{
@@ -62,9 +78,9 @@ export default function LoginPage() {
             }}>{error}</div>
           )}
 
-          <button className="btn btn-primary" type="submit" disabled={loading}
+          <button className="btn btn-primary" type="submit" disabled={submitting}
             style={{ width: '100%', marginTop: 4, padding: '12px' }}>
-            {loading ? 'Signing in…' : 'Sign In'}
+            {submitting ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
 
